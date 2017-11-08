@@ -1,0 +1,10 @@
+#!/bin/zsh
+
+CLIENT=$1; shift;
+
+if [ -z $1 ]; then
+  cd $(find /Users/jholland/Clients -type d -maxdepth 1 -name "$CLIENT")
+else
+  PROJECT=$1; shift;
+  cd $(awk " /$CLIENT $PROJECT / {print \$NF} " ~/.cdp.index)
+fi

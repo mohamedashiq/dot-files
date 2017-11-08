@@ -1,0 +1,95 @@
+[core]
+  editor = /usr/bin/vim
+
+[alias]
+  # nice one liner for status
+  st = status --short
+
+  # remove files from index
+  unstage = reset HEAD
+
+  # get current branch name
+  branch-name = "!git rev-parse --abbrev-ref HEAD"
+
+  # publish to origin
+  publish = "!git push -u origin $(git branch-name)"
+
+  #Delete the remote version of the current branch
+  unpublish = "!git push origin :$(git branch-name)"
+
+  # Show changes that have been staged
+  diffc = diff --cached
+
+  # force an update to the origin
+  force-publish = "!git push -f origin"
+
+  # Delete any branches that have been merged into master
+  # See also: https://gist.github.com/robmiller/5133264
+  delete-merged-branches = "!git co master && git branch --merged | grep -v '\\*' | xargs -n 1 git branch -d"
+
+  # Force delete all branches except master
+  force-delete-branches = "!git co master && git branch | grep -v '\\*' | xargs -n 1 git branch -D"
+
+  # Delete all other branches
+  #pull but only if it's a fast forward
+  pull-ff = pull --ff-only
+
+  # Mark a file as "assume unchanged", which means that Git will treat it
+  # as though there are no changes to it even if there are. Useful for
+  # temporary changes to tracked files
+  assume = update-index --assume-unchanged
+
+  # Reverse the above
+  unassume = update-index --no-assume-unchanged
+
+  # Show the files that are currently assume-unchanged
+  assumed = "!git ls-files -v | grep ^h | cut -c 3-"
+
+  #show current aliases
+  aliases = "!git config --get-regexp 'alias.*' | colrm 1 6 | sed 's/[ ]/ = /'"
+
+  #add alias
+  alias = "!sh -c '[ $# = 2 ] && git config --global alias.\"$1\" \"$2\" && exit 0 || echo \"usage: git alias <new alias> <original command>\" >&2 && exit 1' -"
+
+  br = branch
+  co = checkout
+  ci = commit
+  cia = commit -a
+
+  #diff upstream master
+  diffm = diff upstream/master
+
+  #short diff
+  ds = diff --stat
+
+  # pretty ascii graph log format
+  l = log --graph --pretty='%Cred%h%Creset -%C(yellow)%d%Creset\
+          %s %Cblue[%an]%Creset %Cgreen(%cr)%Creset'\
+          --abbrev-commit --date=relative
+
+  # pretty log with all branches
+  la = !git l --all
+
+
+  # show just commits currently decorated by branch/tag pointers 
+  # really useful for high level picture
+  ld = !git l --all --simplify-by-decoration 
+
+  # all commits unreachable via branch, tag, or child commit
+  # ignores anything pointed to by the reflog 
+  # so it displays all commits in jeopardy of garbage collection
+  loose-commits = !"for SHA in $(git fsck --unreachable --no-reflogs | grep commit | cut -d\\  -f 3); do git log -n 1 $SHA; done"
+	reset-to-upstream = !git reset --hard upstream/$(git branch-name) --
+	rebase-upstream = !git fetch upstream && git rebase -i upstream/master
+	fetch-up = fetch upstream
+	cleanup-origin = !git ls-remote --heads origin | cut -d/ -f3 | xargs -J % git push origin --delete %
+
+[user]
+	name = John Holland
+	email = john.o.holland@gmail.com
+[core]
+	autocrlf = input
+[push]
+	default = simple
+[credential]
+	helper = osxkeychain

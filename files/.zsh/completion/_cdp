@@ -1,0 +1,21 @@
+#compdef cdp
+
+local curcontext="$curcontext" state line ret=1
+local -a _configs
+
+typeset -A opt_args
+
+_arguments -C '1:client name:->client' '2:project name:->project' && ret=0
+
+case $state in 
+  (client)
+    compadd $(awk '{print $1}' ~/.cdp.index | tr '\n' ' ')
+    ;;
+  (project)
+    local -a project_names prev
+    prev=${words[CURRENT-1]}
+    compadd $(awk " /$prev/ {print \$2}" ~/.cdp.index  | tr '\n' ' ')
+    ;;
+esac
+
+return 1

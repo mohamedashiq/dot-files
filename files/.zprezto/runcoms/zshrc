@@ -1,0 +1,31 @@
+#
+# Executes commands at the start of an interactive session.
+#
+# Authors:
+#   Sorin Ionescu <sorin.ionescu@gmail.com>
+#
+
+# Source Prezto.
+if [[ -s "${ZDOTDIR:-$HOME}/.zprezto/init.zsh" ]]; then
+  source "${ZDOTDIR:-$HOME}/.zprezto/init.zsh"
+fi
+
+#Add our own completions
+fpath=(~/.zsh/completion $fpath)
+
+autoload -U compinit
+compinit
+
+zstyle ':completion:*' menu select=2
+#end autocompletion
+
+# Customize to your needs...
+alias docker-image-clean="docker images | awk '/<none>/ { print \$3 }' | xargs docker rmi"
+alias hb="hub browse"
+alias git="hub"
+alias cdp=". cdp"
+
+bindkey "[A" history-beginning-search-backward
+
+bindkey "[B" history-beginning-search-forward
+

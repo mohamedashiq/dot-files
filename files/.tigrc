@@ -1,0 +1,1 @@
+bind generic <Ctrl-R> !?git checkout %(commit) %(file)

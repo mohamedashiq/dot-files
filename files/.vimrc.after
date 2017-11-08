@@ -1,0 +1,3 @@
+nnoremap <C-l> gt
+nnoremap <C-h> gT
+colorscheme solarized
