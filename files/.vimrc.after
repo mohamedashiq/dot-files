@@ -1,3 +1,5 @@
 nnoremap <C-l> gt
 nnoremap <C-h> gT
+
+let g:solarized_termcolors=256
 colorscheme solarized
