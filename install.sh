@@ -1,11 +1,15 @@
 #!/bin/bash -e
 
-if ! command -v brew 2>&1 > /dev/null; then
+cmdpresent() {
+  command -v "$1" 2>&1 > /dev/null
+}
+
+if ! cmdpresent brew; then
     echo 'Installing homebrew'
     /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 fi
 
-if ! command -v hub 2>&1 > /dev/null; then
+if ! cmdpresent hub; then
     echo 'Installing hub'
     brew install hub
 fi
@@ -40,7 +44,7 @@ if ! crontab -l | grep 'cdp_index.sh' 2>&1 > /dev/null; then
     echo "*/5 * * * * $HOME/bin/cdp_index.sh $HOME $USER" | crontab -
 fi
 
-if ! command -v macvim 2>&1 > /dev/null; then
+if ! cmdpresent macvim; then
     echo 'Installing macvim'
     brew install macvim
 fi
@@ -48,7 +52,7 @@ fi
 echo 'Installing Janus for vim'
 curl -L https://bit.ly/janus-bootstrap | bash
 
-if ! command -v tmux 2>&1 > /dev/null; then
+if ! cmdpresent tmux; then
   echo 'Installing tmux'
   brew install tmux
   brew install reattach-to-user-namespace --with-wrap-pbcopy-and-pbpaste
@@ -57,5 +61,20 @@ fi
 if [ ! -d "$HOME/.tmux/plugins/tpm" ]; then
   echo "Installing tmux-plugins"
   git clone https://github.com/tmux-plugins/tpm "$HOME/.tmux/plugins/tpm"
+fi
+
+if ! cmdpresent python3; then
+  echo 'Installing python3'
+  brew install python3
+fi
+
+if ! cmdpresent pipenv; then
+  echo 'Installing pipenv'
+  pip3 install --user pipenv
+fi
+
+if ! cmdpresent aws; then
+  echo 'Installing aws cli tools'
+  pip3 install awscli --upgrade --user
 fi
 

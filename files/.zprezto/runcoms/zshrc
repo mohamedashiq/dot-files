@@ -29,3 +29,11 @@ bindkey "[A" history-beginning-search-backward
 
 bindkey "[B" history-beginning-search-forward
 
+if command -v python3 2>&1 > /dev/null; then
+  PY_USER_BASE="$(python3 -m site --user-base)"
+  if [ -d "${PY_USER_BASE}/bin" ]; then
+    PATH="${PY_USER_BASE}/bin:${PATH}"
+  fi
+fi
+
+PATH="$HOME/bin:$PATH"
