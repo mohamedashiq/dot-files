@@ -2,7 +2,7 @@
 
 CLIENT=$1; shift;
 
-if [ ! -z ${SCAN_DIR+x} ]; then
+if [ -z ${SCAN_DIR+x} ]; then
   if [ -e "$HOME/.cdprc" ]; then
     source "$HOME/.cdprc"
   else
