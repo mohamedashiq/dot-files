@@ -2,8 +2,19 @@
 
 CLIENT=$1; shift;
 
+if [ ! -z ${SCAN_DIR+x} ]; then
+  if [ -e "$HOME/.cdprc" ]; then
+    source "$HOME/.cdprc"
+  else
+    SCAN_DIR="$HOME/repos"
+  fi
+
+  export SCAN_DIR
+fi
+
+
 if [ -z $1 ]; then
-  cd $(find /Users/jholland/Clients -type d -maxdepth 1 -name "$CLIENT")
+  cd $(find "$SCAN_DIR" -type d -maxdepth 1 -name "$CLIENT")
 else
   PROJECT=$1; shift;
   cd $(awk " /$CLIENT $PROJECT / {print \$NF} " ~/.cdp.index)
