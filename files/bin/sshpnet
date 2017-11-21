@@ -1,0 +1,277 @@
+#!/bin/bash
+
+FORWARDS=()
+PREPROD_DOMAIN='connectedfleet.io'
+PROD_DOMAIN='fleethealth.io'
+PROD_AWS_PROFILE='prodro'
+
+ENV_KEYS=('dev:~/.ssh/keys/peoplenet/dev.pem' 'qa:~/.ssh/keys/peoplenet/qa.pem' 'staging:~/.ssh/keys/peoplenet/staging.pem' 'prod-brokers:~/.ssh/keys/peoplenet/prod-brokers.pem')
+DEFAULT_KEY='~/.ssh/id_rsa.pub'
+
+ENV_USERS=('dev:ubuntu' 'qa:ubuntu' 'staging:ubuntu' 'prod-brokers:ubuntu')
+
+if [ -e ~/.sshpnetrc ]; then
+  source ~/.sshpnetrc
+fi
+
+usage() {
+  cat<<EOF
+  Usage: sshpnet <Ly> env [HOST]
+  example:
+           #ssh to prod jumpbox with forwards
+           sshpnet prod -L 8080:myservice.service.consul:8080 -L 8999:service2:8080
+
+           #ssh into prod instances with name matching *kafka*
+           sshpnet prod kafka
+
+           #ssh into dev instance(s) with name matching *m2m-event-ledger*
+           sshpnet dev m2m-event-ledger
+
+           #ssh into qa using public dns name
+           sshpnet -y qa event-ledger
+
+           #ssh to the staging jumpbox
+           sshpnet staging
+
+           #ssh into staging instance at aws private ip 172.13.1.89
+           sshpnet staging 172.13.1.89
+
+  Options:
+    -L: May have multiple, same as 'ssh -L ...'
+    -y: Take the first result or attempt to resolve public DNS and use it.
+    -h: Show this page
+
+  Configuration: ~/.sshpnetrc
+    Optional configuration can be made in the ~/.sshpnetrc file.
+
+    It currently supports:
+
+      FORWARDS=("<localport>:<hostname/ip>:<remoteport>" ... "..")
+        Each element is a standard ssh port forward as specified by '-L'.
+
+      PROD_DOMAIN=<search domain, e.g: fleethealth.io>
+        The domain to be used during DNS lookups for the 'prod' environment
+
+      PREPROD_DOMAIN=<search domain, e.g: connectedfleet.io>
+        The domain to be used during DNS lookups for all pre-prod environments
+
+      PROD_AWS_PROFILE=<aws prod profile name>
+        The profile name to use to access production information
+
+      ENV_KEYS=('dev:~/.ssh/keys/peoplenet/dev.pem' 'qa:...' ... )
+        The ssh key to use to connect to dev instances with
+
+      DEFAULT_KEY='~/.ssh/id_rsa.pub'
+        The default public key to use when no ENV_KEYS are matched.
+
+      ENV_USERS=('dev:ubuntu' 'qa:...' ... )
+        The user to use when logging into instances.  If not set then current USER is used
+EOF
+}
+
+is_prod() {
+  local env=$1; shift
+  echo "$env" | grep 'prod' 1>&2 > /dev/null
+}
+
+domain() {
+  local env=$1; shift
+  is_prod "$env" && echo "$PROD_DOMAIN" || echo "$PREPROD_DOMAIN"
+}
+
+jumpbox() {
+  local env=$1; shift
+  if is_prod "$env"; then
+    echo "jumpbox.${PROD_DOMAIN}"
+  else
+    echo "jumpbox-${env}.${PREPROD_DOMAIN}"
+  fi
+}
+
+lookup_key() {
+  local _key="$1"; shift
+  local _hash="$*"
+
+  rs=$(echo "$_hash" | tr ' ' '\n' | grep "$_key" | cut -d':' -f2)
+  if [ "$rs" != "$_hash" ]; then
+    _lookup_val="$rs"
+  fi
+}
+
+env_key() {
+  local env=$1; shift
+  lookup_key "$env" "${ENV_KEYS[@]}"
+  _ssh_key="${_lookup_val:=$DEFAULT_KEY}"
+}
+
+env_user() {
+  local env=$1; shift
+  lookup_key "$env" "${ENV_USERS[@]}"
+  _ssh_user="${_lookup_val:=$USER}"
+}
+
+ssh-proxy() {
+  local env=$1; shift
+  TARGET_HOST=$1; shift;
+
+  JUMPBOX_HOST="$(jumpbox $env)"
+
+  #ssh -i $TARGET_KEY \
+  env_key "$env"
+  env_user "$env"
+
+  SSH_CMD=" -i $_ssh_key -o \"UserKnownHostsFile /dev/null\"  -o \"StrictHostKeyChecking no\" -J $JUMPBOX_HOST ${_ssh_user}@${TARGET_HOST}"
+  #SSH_CMD=" -i $_ssh_key -o \"UserKnownHostsFile /dev/null\"  -o \"StrictHostKeyChecking no\"  -o "
+  #SSH_CMD="$SSH_CMD \"ProxyCommand ssh -W %h:%p $JUMPBOX_HOST\" $TARGET_HOST"
+  echo "ssh $SSH_CMD"
+  echo ''
+  eval "ssh $SSH_CMD"
+}
+
+ssh-jumpbox() {
+  local env=$1; shift
+
+  JUMPBOX_HOST="$(jumpbox $env)"
+  SSH_CMD="-q "
+  for forward in "${FORWARDS[@]}"; do
+    parts=("${forward//:/ }")
+    #echo "${parts[2]} http://localhost:${parts[1]}/ "
+    SSH_CMD="${SSH_CMD} -L${forward}"
+  done
+  SSH_CMD="${SSH_CMD} -o \"StrictHostKeyChecking no\" $LS -o \"UserKnownHostsFile /dev/null\""
+  SSH_CMD="${SSH_CMD} -A ${JUMPBOX_HOST}"
+  echo "ssh $SSH_CMD"
+  eval "ssh $SSH_CMD"
+}
+resolve-consul-dns() {
+  #do nothing at this time.
+  echo "consul service name, jumpbox will resolve it."
+}
+
+#Queries aws for matches and sets the 'aws_out' variable to an array of results
+aws-lookup() {
+  local env=$1; shift
+  local host=$1; shift
+
+  IFS=$'\n' read -ra aws_out -d '' <<< "$(is_prod "$env" && AWS_PROFILE="$PROD_AWS_PROFILE" aws-ip 'prod' "$host" || aws-ip "$env" "$host")"
+}
+
+#requires that aws_out is set, see aws-lookup()
+#sets the resolved_dns array variable to hostnames that the user selected
+make-aws-selection() {
+
+  echo "aws_out: ${#aws_out[@]}"
+  if [ ${#aws_out[@]} ]; then
+
+    if [ -z ${TAKE_FIRST+x} ] && [ 1 -lt ${#aws_out[@]} ]; then
+
+      echo "Select instance(s) to connect to e.g: 1 2 3"
+      for i in "${!aws_out[@]}"; do
+          printf "[%s]\t%s\n" "$i" "${aws_out[$i]}"
+       done
+       IFS='$\n' read -p "[all]: " choice
+     fi
+
+     local choice="${choice:=all}"
+
+     if [ "$choice" == 'all' ]; then
+       for i in "${!aws_out[@]}"; do
+         resolved_dns+=("$( echo ${aws_out[i]} | cut -d' ' -f5 )")
+       done
+     else
+       for idx in $(echo "$choice"); do
+         resolved_dns+=("$( echo ${aws_out[idx]} | cut -d' ' -f5 )")
+       done
+
+     fi
+  fi
+}
+
+resolve-hosts() {
+  #sets RESOLVED_HOSTS to new hostname
+  local _env=$1; shift
+  local _host=$1; shift
+  local _domain="$(domain $_env)"
+
+  if ! [[ $_host =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+    #NOt an IP Address
+    #verify the name is resolvable
+    if ! host "${_host}.${_domain}" > /dev/null 2>&1; then
+      aws-lookup "$_env" "$_host"
+      make-aws-selection
+
+      if ! [ -z "$resolved_dns" ]; then
+        echo "using resolved dns ip(s): ${resolved_dns[@]}"
+        RESOLVED_HOSTS=("${resolved_dns[@]}")
+      fi
+    fi
+  else
+    #IP address
+    RESOLVED_HOSTS=("$_host")
+  fi
+  echo "HOSTS: ${RESOLVED_HOSTS[@]}"
+}
+
+while getopts ":hL:y" opt; do
+  case $opt in
+    h )
+       usage
+       exit
+       ;;
+    L )
+      _forwards+=("$OPTARG")
+      ;;
+    y )
+      TAKE_FIRST=1
+      ;;
+    \? )
+      echo "Invalid Option: -$OPTARG" 1>&2
+      ;;
+    : )
+      echo "Invalid Option: -$OPTARG requires an argumant" 1>&2
+      ;;
+  esac
+done
+
+if [ ! -z "$_forwards" ]; then
+  FORWARDS="${_forwards}"
+fi
+
+shift $((OPTIND -1))
+
+if [ -z ${1+x} ]; then
+  echo "environment is required"
+  usage
+  exit 1
+else
+  ENV="$1"; shift
+fi
+
+if [ ! -z ${1+x} ]; then
+  HOST="$1"; shift
+
+  resolve-hosts "$ENV" "$HOST"
+
+  case "${#RESOLVED_HOSTS[@]}" in
+    0 )
+      echo "No host selected/found."
+      exit 1
+      ;;
+    1 )
+      ssh-proxy "$ENV" "${RESOLVED_HOSTS[0]}"
+      ;;
+    * )
+      if [ ! -z ${TMUX+x} ]; then
+        win=$(tmux new-window -n "ssh $ENV.$HOST" -P)
+        tmux setw -t "$win" synchronize-panes on
+        for ip in "${RESOLVED_HOSTS[@]}"; do
+          tmux split-window -h  -t "$win" "sshpnet -y $ENV $ip"
+        done
+        tmux kill-pane -t "${win}"
+        tmux select-layout tiled
+      fi
+      ;;
+  esac
+else
+ ssh-jumpbox "$ENV"
+fi

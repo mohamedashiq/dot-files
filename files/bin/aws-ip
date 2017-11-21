@@ -1,0 +1,16 @@
+#!/bin/bash
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 <environment> <app-name>"
+    exit 1
+fi
+
+aws ec2 describe-instances --filters "Name=tag:Name,Values=*$2*" "Name=tag:Environment,Values=$1" | \
+  jq -r '.Reservations[].Instances[] |
+            [.NetworkInterfaces[].Association.PublicIp?,
+             .NetworkInterfaces[].PrivateIpAddress?,
+             .InstanceId,
+             (.Tags[] | select(.Key == "Name").Value),
+             (.Tags[] | select(.Key == "Project").Value),
+             (.Tags[] | select(.Key == "aws:autoscaling:groupName").Value),
+             .InstanceType] |
+             "\(.[5]) \(.[2]) \(.[4]) \(.[3]) \(.[1]) \(.[0]) \(.[6])"' | sort
