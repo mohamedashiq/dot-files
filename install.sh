@@ -72,14 +72,14 @@ if [ ! -e /usr/local/bin/zsh ]; then
 fi
 
 if dscl . read /Users/$USER UserShell | grep -v '/usr/local/bin/zsh'; then
-  myexec "update login shell" sudo dscl . -create /Users/$USER UserShell /usr/local/bin/zsh 
+  myexec "update login shell" sudo dscl . -create /Users/$USER UserShell /usr/local/bin/zsh
 fi
 
 if [ ! -d "/${ZDOTDIR:-$HOME}/.zprezto" ]; then
   myexec "prezto install" git clone --recursive https://github.com/sorin-ionescu/prezto.git "${ZDOTDIR:-$HOME}/.zprezto" 
 fi
 
-myexec "rsync dot files" rsync -a --ignore-existing -K  files/ ~/ 2>&1
+myexec "rsync dot files" rsync -av --ignore-existing -K  --exclude 'iterm2' files/ ~/ 2>&1
 
 inc_color
 pushd "${ZDOTDIR:-$HOME}" > /dev/null
