@@ -122,12 +122,15 @@ exec_ifnot_cmd pipenv 'pipenv install' pip3 install --user pipenv
 
 exec_ifnot_cmd aws 'aws cli tools install' pip3 install awscli --upgrade --user
 
+exec_ifnot_cmd jq 'jq install' brew install jq
+
 exec_ifnot_cmd ag 'ag install (the silver searcher)' brew install the_silver_searcher
 
 if [ ! -d "$HOME/.sdkman" ]; then
   myexec 'install sdkman' 'curl -s "https://get.sdkman.io" | bash'
-  source "$HOME/.sdkman/bin/sdkman-init.sh"
 fi
+
+source "$HOME/.sdkman/bin/sdkman-init.sh"
 
 exec_ifnot_cmd gradle 'install gradle' sdk install gradle
 
