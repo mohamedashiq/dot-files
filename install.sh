@@ -79,7 +79,7 @@ if [ ! -d "/${ZDOTDIR:-$HOME}/.zprezto" ]; then
   myexec "prezto install" git clone --recursive https://github.com/sorin-ionescu/prezto.git "${ZDOTDIR:-$HOME}/.zprezto" 
 fi
 
-myexec "rsync dot files" rsync -av --ignore-existing -K  --exclude 'iterm2' files/ ~/ 2>&1
+myexec "rsync dot files" rsync -av -K  --exclude 'iterm2' files/ ~/ 2>&1
 
 inc_color
 pushd "${ZDOTDIR:-$HOME}" > /dev/null
