@@ -58,6 +58,8 @@ exec_ifnot_cmd() {
 
   if ! cmdpresent "$cmd"; then
     myexec "$name" $@
+  else
+    myexec "$name" true
   fi
 }
 
@@ -77,7 +79,7 @@ if [ ! -d "/${ZDOTDIR:-$HOME}/.zprezto" ]; then
   myexec "prezto install" git clone --recursive https://github.com/sorin-ionescu/prezto.git "${ZDOTDIR:-$HOME}/.zprezto" 
 fi
 
-myexec "rsync dot files" rsync -av --progress -K  files/ ~/ 2>&1
+myexec "rsync dot files" rsync -a --ignore-existing -K  files/ ~/ 2>&1
 
 inc_color
 pushd "${ZDOTDIR:-$HOME}" > /dev/null
@@ -121,3 +123,12 @@ exec_ifnot_cmd pipenv 'pipenv install' pip3 install --user pipenv
 exec_ifnot_cmd aws 'aws cli tools install' pip3 install awscli --upgrade --user
 
 exec_ifnot_cmd ag 'ag install (the silver searcher)' brew install the_silver_searcher
+
+if [ ! -d "$HOME/.sdkman" ]; then
+  myexec 'install sdkman' 'curl -s "https://get.sdkman.io" | bash'
+  source "$HOME/.sdkman/bin/sdkman-init.sh"
+fi
+
+exec_ifnot_cmd gradle 'install gradle' sdk install gradle
+
+echo "Install Complete"
