@@ -6,7 +6,7 @@ PROD_DOMAIN='fleethealth.io'
 PROD_AWS_PROFILE='prodro'
 
 ENV_KEYS=('dev:~/.ssh/keys/peoplenet/dev.pem' 'qa:~/.ssh/keys/peoplenet/qa.pem' 'staging:~/.ssh/keys/peoplenet/staging.pem' 'prod-brokers:~/.ssh/keys/peoplenet/prod-brokers.pem')
-DEFAULT_KEY='~/.ssh/id_rsa.pub'
+DEFAULT_KEY='~/.ssh/id_rsa'
 
 ENV_USERS=('dev:ubuntu' 'qa:ubuntu' 'staging:ubuntu' 'prod-brokers:ubuntu')
 
@@ -92,9 +92,11 @@ lookup_key() {
   local _key="$1"; shift
   local _hash="$*"
 
-  rs=$(echo "$_hash" | tr ' ' '\n' | grep "$_key" | cut -d':' -f2)
+  rs=$(echo "$_hash" | tr ' ' '\n' | grep  "^${_key}:" | cut -d':' -f2)
   if [ "$rs" != "$_hash" ]; then
     _lookup_val="$rs"
+  else
+    unset _lookup_val
   fi
 }
 
