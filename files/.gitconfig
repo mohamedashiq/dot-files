@@ -85,8 +85,8 @@
 	cleanup-origin = !git ls-remote --heads origin | cut -d/ -f3 | xargs -J % git push origin --delete %
 
 [user]
-	name = John Holland
-	email = john.o.holland@gmail.com
+	name = Mohamed Ashiq
+	email = mohamedashiq@gmail.com
 [core]
 	autocrlf = input
 [push]
